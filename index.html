@@ -287,6 +287,22 @@ color: var(–ink-light);
 margin-bottom: 24px;
 }
 
+.next-btn {
+background: var(–done-bg);
+color: #e8ede9;
+border: none;
+border-radius: 2px;
+padding: 12px 32px;
+font-family: ‘Libre Baskerville’, serif;
+font-size: 0.9rem;
+cursor: pointer;
+letter-spacing: 0.04em;
+transition: opacity 0.2s;
+margin-bottom: 4px;
+}
+
+.next-btn:hover { opacity: 0.88; }
+
 .undo-btn {
 background: none;
 border: 1px solid var(–rule);
@@ -369,6 +385,8 @@ margin-top: 8px;
   <span class="done-kanji">完</span>
   <p class="done-message">That's this week's point. Anki handles the rest.</p>
   <p class="done-next" id="nextPreview"></p>
+  <button class="next-btn" onclick="goNext()">next point →</button>
+  <br><br>
   <button class="undo-btn" onclick="undoDone()">undo — I'm not done yet</button>
 </div>
 
@@ -669,6 +687,12 @@ function markDone() {
     card.classList.remove('fading');
     renderCard();
   }, 300);
+}
+
+function goNext() {
+  isDone = false;
+  saveDone(false);
+  renderCard();
 }
 
 function undoDone() {
