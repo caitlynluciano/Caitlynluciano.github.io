@@ -552,35 +552,23 @@ let currentIdx = 0;
 let isDone = false;
 let fixation = '';
 
-async function loadState() {
-  try {
-    const idxRes = await window.storage.get('grammar_idx');
-    if (idxRes) currentIdx = parseInt(idxRes.value) || 0;
-  } catch(e) { currentIdx = 0; }
-
-  try {
-    const doneRes = await window.storage.get('week_done');
-    if (doneRes) isDone = doneRes.value === 'true';
-  } catch(e) { isDone = false; }
-
-  try {
-    const fixRes = await window.storage.get('fixation');
-    if (fixRes) fixation = fixRes.value || '';
-  } catch(e) { fixation = ''; }
-
+function loadState() {
+  try { currentIdx = parseInt(localStorage.getItem('grammar_idx')) || 0; } catch(e) { currentIdx = 0; }
+  try { isDone = localStorage.getItem('week_done') === 'true'; } catch(e) { isDone = false; }
+  try { fixation = localStorage.getItem('fixation') || ''; } catch(e) { fixation = ''; }
   renderCard();
 }
 
-async function saveIdx(idx) {
-  try { await window.storage.set('grammar_idx', String(idx)); } catch(e) {}
+function saveIdx(idx) {
+  try { localStorage.setItem('grammar_idx', String(idx)); } catch(e) {}
 }
 
-async function saveDone(val) {
-  try { await window.storage.set('week_done', String(val)); } catch(e) {}
+function saveDone(val) {
+  try { localStorage.setItem('week_done', String(val)); } catch(e) {}
 }
 
-async function saveFixation(val) {
-  try { await window.storage.set('fixation', val); } catch(e) {}
+function saveFixation(val) {
+  try { localStorage.setItem('fixation', val); } catch(e) {}
 }
 
 // ── RENDER ─────────────────────────────────────────────────────────────────────
@@ -666,40 +654,38 @@ function updatePrompt(val) {
 }
 
 // ── DONE / UNDO ────────────────────────────────────────────────────────────────
-async function markDone() {
+function markDone() {
   const card = document.getElementById('mainCard');
   card.classList.add('fading');
 
-  await new Promise(r => setTimeout(r, 300));
+  setTimeout(() => {
+    const newIdx = (currentIdx + 1) % ALL_POINTS.length;
+    currentIdx = newIdx;
+    isDone = true;
 
-  // Advance index
-  const newIdx = (currentIdx + 1) % ALL_POINTS.length;
-  currentIdx = newIdx;
-  isDone = true;
+    saveIdx(newIdx);
+    saveDone(true);
 
-  await saveIdx(newIdx);
-  await saveDone(true);
-
-  card.classList.remove('fading');
-  renderCard();
+    card.classList.remove('fading');
+    renderCard();
+  }, 300);
 }
 
-async function undoDone() {
-  // Step back one
+function undoDone() {
   currentIdx = Math.max(0, currentIdx - 1);
   isDone = false;
-  await saveIdx(currentIdx);
-  await saveDone(false);
+  saveIdx(currentIdx);
+  saveDone(false);
   renderCard();
 }
 
 // ── RESET ─────────────────────────────────────────────────────────────────────
-async function confirmReset() {
+function confirmReset() {
   if (!confirm('Reset all progress back to point 1?')) return;
   currentIdx = 0;
   isDone = false;
-  await saveIdx(0);
-  await saveDone(false);
+  saveIdx(0);
+  saveDone(false);
   renderCard();
 }
 
