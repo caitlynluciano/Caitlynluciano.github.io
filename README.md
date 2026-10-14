@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 
 <html lang="en">
 <head>
@@ -200,22 +200,6 @@ color: var(–ink-light);
 font-style: italic;
 }
 
-.gen-btn {
-background: none;
-border: 1px solid var(–rule);
-border-radius: 2px;
-padding: 9px 14px;
-font-family: ‘Libre Baskerville’, serif;
-font-size: 0.78rem;
-color: var(–ink-mid);
-cursor: pointer;
-white-space: nowrap;
-transition: all 0.2s;
-}
-
-.gen-btn:hover { border-color: var(–accent); color: var(–accent); }
-.gen-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
 .ai-prompt-result {
 font-family: ‘Noto Serif JP’, serif;
 font-size: 0.96rem;
@@ -370,8 +354,7 @@ margin-top: 8px;
   </div>
 
   <div class="fixation-row">
-    <input class="fixation-input" id="fixationInput" type="text" placeholder="current obsession (e.g. Elden Ring, Dracula, The Bear…)" />
-    <button class="gen-btn" id="genBtn" onclick="generatePrompt()">tune it →</button>
+    <input class="fixation-input" id="fixationInput" type="text" placeholder="current obsession (e.g. Elden Ring, Dracula, The Bear…)" oninput="updatePrompt(this.value)" />
   </div>
 
   <div class="ai-prompt-result" id="aiPromptResult"></div>
@@ -619,8 +602,15 @@ function renderCard() {
   document.getElementById('defaultPrompt').innerHTML =
     `<strong>Write one sentence</strong> — ${prompt.replace('Write one sentence — ', '').replace('Write one sentence about', 'about').replace('Write one sentence', '')} Use <em>${point.pattern}</em>.`;
 
-  // Restore fixation input
-  if (fixation) document.getElementById('fixationInput').value = fixation;
+  // Restore fixation input and update prompt
+  const fixInput = document.getElementById('fixationInput');
+  if (fixation) {
+    fixInput.value = fixation;
+    updatePrompt(fixation);
+  } else {
+    document.getElementById('aiPromptResult').classList.remove('visible');
+    document.getElementById('aiPromptResult').textContent = '';
+  }
 
   // Next preview
   document.getElementById('nextPreview').textContent =
@@ -639,48 +629,40 @@ function renderCard() {
   }
 }
 
-// ── AI PROMPT GENERATION ──────────────────────────────────────────────────────
-async function generatePrompt() {
-  const input = document.getElementById('fixationInput').value.trim();
-  if (!input) return;
+// ── LOCAL PROMPT GENERATION ───────────────────────────────────────────────────
+// Slot-based templates — no API call needed, works on GitHub Pages
+const FIXATION_TEMPLATES = [
+  (f, p) => `Think of a character from ${f}. Write one sentence describing who or what they are, using ${p}.`,
+  (f, p) => `Something happened in ${f} recently that stuck with you. Write one sentence about it using ${p}.`,
+  (f, p) => `Pick a place or setting from ${f}. Describe it in one sentence using ${p}.`,
+  (f, p) => `How does your favourite character from ${f} feel right now? One sentence using ${p}.`,
+  (f, p) => `Write one sentence about what you're looking forward to in ${f} — using ${p}.`,
+  (f, p) => `Something in ${f} surprised you. Write one sentence about it using ${p}.`,
+  (f, p) => `Write one sentence comparing two things from ${f}, using ${p}.`,
+  (f, p) => `A character from ${f} wants something. Write one sentence about it using ${p}.`,
+];
 
-  fixation = input;
-  await saveFixation(fixation);
-
-  const point = ALL_POINTS[currentIdx % ALL_POINTS.length];
-  const btn = document.getElementById('genBtn');
-  btn.disabled = true;
-  btn.textContent = '…';
-
+function updatePrompt(val) {
+  const trimmed = val.trim();
   const aiResult = document.getElementById('aiPromptResult');
-  aiResult.classList.remove('visible');
+  const point = ALL_POINTS[currentIdx % ALL_POINTS.length];
 
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 150,
-        messages: [{
-          role: 'user',
-          content: `You are giving a Japanese writing prompt to an N3-level learner. Their current obsession is: "${input}". The grammar point this week is: ${point.pattern} (${point.use}). Write ONE short, specific, fun writing prompt in English that asks them to write ONE Japanese sentence using this grammar point, referencing something from their current obsession. The prompt should feel personal and interesting, not generic. Keep it to 1-2 sentences max. Do not include the Japanese sentence yourself — just the prompt.`
-        }]
-      })
-    });
-    const data = await res.json();
-    const text = data.content?.map(c => c.text || '').join('') || '';
-    if (text) {
-      aiResult.textContent = text.trim();
-      aiResult.classList.add('visible');
-    }
-  } catch(e) {
-    aiResult.textContent = 'Could not generate — try again.';
-    aiResult.classList.add('visible');
+  if (!trimmed) {
+    aiResult.classList.remove('visible');
+    aiResult.textContent = '';
+    return;
   }
 
-  btn.disabled = false;
-  btn.textContent = 'tune it →';
+  // Save fixation
+  fixation = trimmed;
+  saveFixation(fixation);
+
+  // Pick template based on current point index for variety
+  const templateFn = FIXATION_TEMPLATES[currentIdx % FIXATION_TEMPLATES.length];
+  const prompt = templateFn(trimmed, point.pattern);
+
+  aiResult.textContent = prompt;
+  aiResult.classList.add('visible');
 }
 
 // ── DONE / UNDO ────────────────────────────────────────────────────────────────
